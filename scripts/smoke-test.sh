@@ -19,7 +19,9 @@ assert_contains "$(curl -fsS "$GATEWAY/v3/api-docs")" '"/api/v1/reports"' "OpenA
 assert_eq "$(http_status POST /api/v1/reports '{"description":""}')" "422" "invalid body gives 422"
 assert_eq "$(http_status GET /api/v1/reports/00000000-0000-0000-0000-000000000000)" "404" "unknown report gives 404"
 assert_contains "$(curl -s "$GATEWAY/api/v1/reports/00000000-0000-0000-0000-000000000000")" '"code":"NOT_FOUND"' "errors use the standard shape"
-assert_contains "$(curl -s -D - -o /dev/null -X OPTIONS "$GATEWAY/api/v1/reports" -H 'Origin: http://localhost:5173' -H 'Access-Control-Request-Method: POST')" "access-control-allow-origin" "the gateway answers CORS preflight requests"
+# HTTP header names are case-insensitive (HTTP/1.1 sends them capitalised, HTTP/2 lowercase), so compare lowercased
+PREFLIGHT="$(curl -s -D - -o /dev/null -X OPTIONS "$GATEWAY/api/v1/reports" -H 'Origin: http://localhost:5173' -H 'Access-Control-Request-Method: POST' | tr 'A-Z' 'a-z')"
+assert_contains "$PREFLIGHT" "access-control-allow-origin: http://localhost:5173" "the gateway answers CORS preflight requests"
 
 echo "== 3. SOAP contract (WSDL generated from the XSD, Faults)"
 WSDL="$(curl -fsS "$MUNICIPAL/ws/municipal.wsdl")"
