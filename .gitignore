@@ -1,0 +1,21 @@
+# build output
+target/
+# local configuration and secrets
+.env
+# IDE files (the team uses different IDEs)
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+*.class
+# OS
+.DS_Store
+Thumbs.db
+# frontend
+node_modules/
+dist/
+frontend/.env
+# uploaded photos (dev)
+uploads/

@@ -1,0 +1,41 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      httpclient:
+        connect-timeout: 2000     # ms, explicit timeout on every network call
+        response-timeout: 10s
+      globalcors:                 # CORS: lets the frontend (another origin in dev) call the API
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
+            allowedMethods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+            allowedHeaders: "*"
+            maxAge: 3600
+      routes:
+        # Server-Sent Events: a long-lived response, so no response timeout on this route.
+        - id: report-events
+          uri: ${REPORT_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/v1/events
+          metadata:
+            response-timeout: -1
+        # Single public entry point. Services are reached through Docker Compose DNS names (see compose file).
+        - id: report-service
+          uri: ${REPORT_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/v1/**,/v3/api-docs/**,/swagger-ui/**,/swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,gateway
+  endpoint:
+    health:
+      probes:
+        enabled: true

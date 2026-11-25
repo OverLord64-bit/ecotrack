@@ -1,0 +1,656 @@
+openapi: 3.0.3
+info:
+  title: EcoTrack REST API (report-service, via the gateway)
+  version: v1
+  description: Reports, collection points, validation (planning delegated to collection-service over gRPC) and record transmission
+    (SOAP). Refresh from the running service with scripts/export-openapi.sh.
+servers:
+- url: http://localhost:8080
+  description: API gateway
+paths:
+  /api/v1/reports:
+    post:
+      summary: Create a report (starts SUBMITTED)
+      tags:
+      - reports
+      responses:
+        '201':
+          description: Created (Location header)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema: &id001
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReportRequest'
+    get:
+      summary: List reports (paginated, filterable)
+      tags:
+      - reports
+      responses:
+        '200':
+          description: A page of reports
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportPage'
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema: *id001
+      parameters:
+      - name: status
+        in: query
+        schema:
+          $ref: '#/components/schemas/ReportStatus'
+      - name: category
+        in: query
+        schema:
+          $ref: '#/components/schemas/WasteCategory'
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 0
+      - name: size
+        in: query
+        schema:
+          type: integer
+          default: 20
+          maximum: 100
+  /api/v1/reports/{id}:
+    get:
+      summary: Get a report
+      tags:
+      - reports
+      responses:
+        '200':
+          description: The report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema: *id001
+      parameters:
+      - &id002
+        name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/reports/{id}/history:
+    get:
+      summary: Status history
+      tags:
+      - reports
+      responses:
+        '200':
+          description: History
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HistoryEntry'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema: *id001
+      parameters:
+      - *id002
+  /api/v1/reports/{id}/validate:
+    post:
+      summary: 'Validate: plans a collection over gRPC (200), or postpones it when collection-service is unavailable (202,
+        PENDING_PLANNING)'
+      tags:
+      - agent
+      responses:
+        '200':
+          description: Planned (PLANNED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '202':
+          description: Postponed (PENDING_PLANNING), retried automatically
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema: *id001
+        '409':
+          description: Conflict with the current state
+          content:
+            application/json:
+              schema: *id001
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema: *id001
+      parameters:
+      - *id002
+      - &id003
+        name: X-Actor
+        in: header
+        required: false
+        schema:
+          type: string
+          default: agent
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidateBody'
+  /api/v1/reports/{id}/reject:
+    post:
+      summary: Reject a report (comment required)
+      tags:
+      - agent
+      responses:
+        '200':
+          description: Rejected (REJECTED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema: *id001
+        '409':
+          description: Conflict with the current state
+          content:
+            application/json:
+              schema: *id001
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema: *id001
+      parameters:
+      - *id002
+      - *id003
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectRequest'
+  /api/v1/reports/{id}/collection:
+    get:
+      summary: Status of the report collection (read over gRPC GetCollection)
+      tags:
+      - agent
+      responses:
+        '200':
+          description: The collection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Collection'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema: *id001
+        '503':
+          description: A downstream service is unavailable
+          content:
+            application/json:
+              schema: *id001
+      parameters:
+      - *id002
+  /api/v1/reports/{id}/photo:
+    post:
+      summary: Upload a photo (JPEG, PNG or WebP, 5 MB max)
+      tags:
+      - reports
+      responses:
+        '200':
+          description: The report with photoUrl
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema: *id001
+        '413':
+          description: File too large
+          content:
+            application/json:
+              schema: *id001
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema: *id001
+      parameters:
+      - *id002
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+              - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+    get:
+      summary: Download the photo
+      tags:
+      - reports
+      responses:
+        '200':
+          description: The image
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema: *id001
+      parameters:
+      - *id002
+  /api/v1/events:
+    get:
+      summary: 'Server-Sent Events: one `report` event (JSON ReportEvent) on every report change'
+      tags:
+      - events
+      responses:
+        '200':
+          description: text/event-stream
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/ReportEvent'
+  /api/v1/collection-points:
+    post:
+      summary: Create a collection point
+      tags:
+      - collection-points
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionPoint'
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema: *id001
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollectionPointRequest'
+    get:
+      summary: List collection points
+      tags:
+      - collection-points
+      responses:
+        '200':
+          description: Points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CollectionPoint'
+  /api/v1/collection-points/{id}:
+    get:
+      summary: Get a collection point
+      tags:
+      - collection-points
+      responses:
+        '200':
+          description: The point
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionPoint'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema: *id001
+      parameters:
+      - *id002
+    put:
+      summary: Update a collection point
+      tags:
+      - collection-points
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionPoint'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema: *id001
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema: *id001
+      parameters:
+      - *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollectionPointRequest'
+    delete:
+      summary: Delete (deactivate) a collection point
+      tags:
+      - collection-points
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema: *id001
+      parameters:
+      - *id002
+components:
+  schemas:
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: string
+          example: VALIDATION_FAILED
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        details:
+          type: array
+          items:
+            type: string
+    WasteCategory:
+      type: string
+      enum:
+      - HOUSEHOLD
+      - CONSTRUCTION
+      - BULKY
+      - OTHER
+    ReportStatus:
+      type: string
+      enum:
+      - SUBMITTED
+      - PENDING_PLANNING
+      - PLANNED
+      - IN_PROGRESS
+      - RESOLVED
+      - REJECTED
+    TransmissionStatus:
+      type: string
+      enum:
+      - PENDING_TRANSMISSION
+      - TRANSMITTED
+      - REFUSED
+    CreateReportRequest:
+      type: object
+      required:
+      - description
+      - wasteCategory
+      - latitude
+      - longitude
+      properties:
+        reporterName:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 2000
+        wasteCategory:
+          $ref: '#/components/schemas/WasteCategory'
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+        address:
+          type: string
+          maxLength: 200
+    Report:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        reporterName:
+          type: string
+        description:
+          type: string
+        wasteCategory:
+          $ref: '#/components/schemas/WasteCategory'
+        latitude:
+          type: number
+        longitude:
+          type: number
+        address:
+          type: string
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        collectionId:
+          type: string
+          format: uuid
+        photoUrl:
+          type: string
+        transmissionStatus:
+          $ref: '#/components/schemas/TransmissionStatus'
+        transmissionReference:
+          type: string
+          example: MUN-2026-00042
+        transmissionAttempts:
+          type: integer
+        transmissionError:
+          type: string
+        resolvedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ReportPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Report'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+    ValidateBody:
+      type: object
+      properties:
+        scheduledAt:
+          type: string
+          format: date-time
+          description: Must be in the future; default tomorrow
+        priority:
+          type: string
+          enum:
+          - LOW
+          - NORMAL
+          - HIGH
+    RejectRequest:
+      type: object
+      required:
+      - comment
+      properties:
+        comment:
+          type: string
+          maxLength: 500
+    HistoryEntry:
+      type: object
+      properties:
+        oldStatus:
+          $ref: '#/components/schemas/ReportStatus'
+        newStatus:
+          $ref: '#/components/schemas/ReportStatus'
+        changedBy:
+          type: string
+        changedAt:
+          type: string
+          format: date-time
+        comment:
+          type: string
+    Collection:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        reportId:
+          type: string
+          format: uuid
+        address:
+          type: string
+        status:
+          type: string
+          enum:
+          - PLANNED
+          - IN_PROGRESS
+          - COMPLETED
+        priority:
+          type: string
+        scheduledFor:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ReportEvent:
+      type: object
+      properties:
+        reportId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        collectionId:
+          type: string
+          format: uuid
+        transmissionStatus:
+          $ref: '#/components/schemas/TransmissionStatus'
+        transmissionReference:
+          type: string
+        at:
+          type: string
+          format: date-time
+    CollectionPointRequest:
+      type: object
+      required:
+      - name
+      - latitude
+      - longitude
+      - wasteTypes
+      properties:
+        name:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        address:
+          type: string
+        wasteTypes:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/WasteCategory'
+    CollectionPoint:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        address:
+          type: string
+        wasteTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/WasteCategory'
+        active:
+          type: boolean

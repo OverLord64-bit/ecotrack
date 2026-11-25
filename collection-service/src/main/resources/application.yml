@@ -1,0 +1,36 @@
+server:
+  port: ${SERVER_PORT:8082}          # HTTP: actuator only
+
+grpc:
+  server:
+    port: ${GRPC_PORT:9090}          # gRPC; reflection is enabled so grpcurl works without the .proto
+
+spring:
+  application:
+    name: collection-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/collections}
+    username: ${SPRING_DATASOURCE_USERNAME:collections}
+    password: ${SPRING_DATASOURCE_PASSWORD:collections}
+  jpa:
+    hibernate:
+      ddl-auto: none        # schema.sql owns the schema; integration tests check the entities against it
+    open-in-view: false
+  sql:
+    init:
+      mode: always
+
+ecotrack:
+  simulation:                                   # plays the field teams: PLANNED -> IN_PROGRESS -> COMPLETED
+    step-seconds: ${SIMULATION_STEP_SECONDS:10}
+    tick-ms: 1000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true

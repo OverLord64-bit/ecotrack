@@ -1,0 +1,12 @@
+# Report outline (8-12 pages)
+1. Context and objectives (0.5)
+2. Architecture: diagram, services, DB per service, protocol choices (2)
+3. REST design: resources, codes, validation, errors, OpenAPI, SSE (1.5)
+4. gRPC design: proto v1, unary and streaming, status codes, deadlines (1.5)
+5. SOAP design: XSD first, WSDL, RecordRejectedFault, idempotency (1.5)
+6. Docker and deployment: multi-stage, compose, healthchecks, startup order, config, volumes (1.5)
+7. Resilience: timeouts, circuit breaker + fallback PENDING_PLANNING, retry + fallback PENDING_TRANSMISSION, failure demo results (1.5)
+8. Tests and CI (1)
+9. Limits and improvements (JWT, messaging, tracing, saga) (0.5)
+10. Work split and lessons (0.5)
+Appendix: screenshots of Swagger, grpcurl, WSDL, the failure demo, the frontend.

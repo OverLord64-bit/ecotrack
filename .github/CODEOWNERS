@@ -1,0 +1,8 @@
+# Contracts need both teammates. Replace with real GitHub handles.
+# Person A = report-service, api-gateway, frontend (citizen). Person B = collection-service, municipal-service, infra.
+/contracts/            @member-a @member-b
+/report-service/       @member-a
+/api-gateway/          @member-a
+/collection-service/   @member-b
+/municipal-service/    @member-b
+/docker-compose.yml    @member-b

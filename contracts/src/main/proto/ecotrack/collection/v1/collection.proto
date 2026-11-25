@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package ecotrack.collection.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option java_multiple_files = true;
+option java_package = "com.ecotrack.contracts.collection.v1";
+option java_outer_classname = "CollectionProto";
+
+// Contract evolution rules (package v1):
+//  - never renumber or reuse a field number; add new fields with new numbers (backward compatible)
+//  - to remove a field, mark its number and name `reserved`
+//  - a breaking change goes into a new package (ecotrack.collection.v2); v1 keeps running
+//
+// Status codes used by the server:
+//  INVALID_ARGUMENT  malformed id, missing field, schedule in the past
+//  NOT_FOUND         unknown collection
+//  ABORTED           the report is already in an active collection
+//  UNAVAILABLE / DEADLINE_EXCEEDED  produced by the transport; clients may retry
+service CollectionService {
+  // Unary: plan a collection for a report. `request_id` makes the call idempotent (safe to retry).
+  rpc PlanCollection(PlanCollectionRequest) returns (CollectionInfo);
+  // Unary: read one collection.
+  rpc GetCollection(GetCollectionRequest) returns (CollectionInfo);
+  // Server streaming: current status first, then every change, until COMPLETED (then the stream completes).
+  // The server simulates the progress PLANNED -> IN_PROGRESS -> COMPLETED (see collection-service configuration).
+  rpc WatchStatus(WatchStatusRequest) returns (stream CollectionStatusEvent);
+}
+
+enum CollectionStatus {
+  COLLECTION_STATUS_UNSPECIFIED = 0;
+  COLLECTION_STATUS_PLANNED = 1;
+  COLLECTION_STATUS_IN_PROGRESS = 2;
+  COLLECTION_STATUS_COMPLETED = 3;
+}
+
+enum Priority {
+  PRIORITY_UNSPECIFIED = 0;
+  PRIORITY_LOW = 1;
+  PRIORITY_NORMAL = 2;
+  PRIORITY_HIGH = 3;
+}
+
+message PlanCollectionRequest {
+  string request_id = 1;                         // UUID chosen by the caller, idempotency key
+  string report_id = 2;                     // UUID of the report
+  string address = 3;                            // free text, informational
+  google.protobuf.Timestamp scheduled_for = 4;  // must be in the future
+  Priority priority = 5;                         // UNSPECIFIED is treated as NORMAL
+}
+
+message GetCollectionRequest {
+  string collection_id = 1;
+}
+
+message WatchStatusRequest {
+  string collection_id = 1;
+}
+
+message CollectionInfo {
+  string id = 1;
+  string report_id = 2;
+  string address = 3;
+  CollectionStatus status = 4;
+  Priority priority = 5;
+  google.protobuf.Timestamp scheduled_for = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+message CollectionStatusEvent {
+  string collection_id = 1;
+  string report_id = 2;
+  CollectionStatus status = 3;
+  google.protobuf.Timestamp occurred_at = 4;
+}

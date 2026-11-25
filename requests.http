@@ -1,0 +1,69 @@
+### REST: list reports (through the gateway)
+GET http://localhost:8080/api/v1/reports
+
+### WSDL
+GET http://localhost:8083/ws/municipal.wsdl
+
+### SOAP: SubmitCollectionRecord (send twice: duplicate=true)
+POST http://localhost:8083/ws
+Content-Type: text/xml; charset=utf-8
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:m="http://ecotrack.example/municipal">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <m:SubmitCollectionRecordRequest>
+      <m:recordId>123e4567-e89b-12d3-a456-426614174000</m:recordId>
+      <m:reportId>123e4567-e89b-12d3-a456-426614174002</m:reportId>
+      <m:collectionId>123e4567-e89b-12d3-a456-426614174000</m:collectionId>
+      <m:completedAt>2026-11-02T10:00:00Z</m:completedAt>
+      <m:address>Rue de Marseille</m:address>
+    </m:SubmitCollectionRecordRequest>
+  </soapenv:Body>
+</soapenv:Envelope>
+
+### SOAP: invalid id -> Fault (XSD pattern)
+POST http://localhost:8083/ws
+Content-Type: text/xml; charset=utf-8
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:m="http://ecotrack.example/municipal">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <m:SubmitCollectionRecordRequest><m:recordId>not-a-uuid</m:recordId></m:SubmitCollectionRecordRequest>
+  </soapenv:Body>
+</soapenv:Envelope>
+
+### SOAP: business rule -> RecordRejectedFault (date in the future)
+POST http://localhost:8083/ws
+Content-Type: text/xml; charset=utf-8
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:m="http://ecotrack.example/municipal">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <m:SubmitCollectionRecordRequest>
+      <m:recordId>123e4567-e89b-12d3-a456-426614174099</m:recordId>
+      <m:reportId>123e4567-e89b-12d3-a456-426614174002</m:reportId>
+      <m:collectionId>123e4567-e89b-12d3-a456-426614174099</m:collectionId>
+      <m:completedAt>2099-01-01T10:00:00Z</m:completedAt>
+    </m:SubmitCollectionRecordRequest>
+  </soapenv:Body>
+</soapenv:Envelope>
+
+### SOAP: GetRecordStatus
+POST http://localhost:8083/ws
+Content-Type: text/xml; charset=utf-8
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:m="http://ecotrack.example/municipal">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <m:GetRecordStatusRequest><m:recordId>123e4567-e89b-12d3-a456-426614174000</m:recordId></m:GetRecordStatusRequest>
+  </soapenv:Body>
+</soapenv:Envelope>
+
+### REST: validate a demo report (plans a collection over gRPC)
+POST http://localhost:8080/api/v1/reports/11111111-0000-0000-0000-000000000001/validate
+
+### REST: reject a demo report
+POST http://localhost:8080/api/v1/reports/11111111-0000-0000-0000-000000000004/reject
+Content-Type: application/json
+
+{"comment": "duplicate of another report"}

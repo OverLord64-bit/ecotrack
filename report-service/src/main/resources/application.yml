@@ -1,0 +1,85 @@
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  application:
+    name: report-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/reports}
+    username: ${SPRING_DATASOURCE_USERNAME:reports}
+    password: ${SPRING_DATASOURCE_PASSWORD:reports}
+  jpa:
+    hibernate:
+      ddl-auto: validate    # Flyway owns the schema (db/migration); Hibernate only checks the mapping matches
+    open-in-view: false
+  flyway:
+    enabled: true
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+  jackson:
+    default-property-inclusion: non_null
+
+grpc:
+  client:
+    collection:
+      address: ${COLLECTION_GRPC_ADDRESS:static://localhost:9090}   # in Docker: static://collection-service:9090
+      negotiation-type: plaintext
+
+ecotrack:
+  collection:
+    deadline-ms: ${COLLECTION_DEADLINE_MS:2000}      # client-side deadline on every unary gRPC call
+    watch:
+      enabled: ${COLLECTION_WATCH_ENABLED:true}      # follow collections over the WatchStatus stream
+      reconnect-ms: 5000
+  municipal:
+    soap-url: ${MUNICIPAL_SOAP_URL:http://localhost:8083/ws}
+    connect-timeout-ms: ${MUNICIPAL_CONNECT_TIMEOUT_MS:2000}   # explicit timeouts on the SOAP call
+    read-timeout-ms: ${MUNICIPAL_READ_TIMEOUT_MS:3000}
+  transmission:
+    retry-interval-ms: ${TRANSMISSION_RETRY_INTERVAL_MS:10000}      # re-send records that are PENDING_TRANSMISSION
+  planning:
+    retry-interval-ms: ${PLANNING_RETRY_INTERVAL_MS:15000}     # re-plan reports that are PENDING_PLANNING
+  uploads:
+    dir: ${UPLOADS_DIR:uploads}                                # a volume in Docker
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      collection:
+        sliding-window-size: 6
+        minimum-number-of-calls: 3
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 15s
+        permitted-number-of-calls-in-half-open-state: 1
+        automatic-transition-from-open-to-half-open-enabled: true
+        ignore-exceptions:
+          - com.ecotrack.report.collection.CollectionRejectedException   # business answers are not outages
+  retry:
+    instances:
+      municipal:                       # SOAP: retry with exponential backoff, fallback = record PENDING_TRANSMISSION
+        max-attempts: 3
+        wait-duration: 500ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        ignore-exceptions:
+          - org.springframework.ws.soap.client.SoapFaultClientException
+      collection:
+        max-attempts: 3
+        wait-duration: 300ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        ignore-exceptions:
+          - com.ecotrack.report.collection.CollectionRejectedException
+          - io.github.resilience4j.circuitbreaker.CallNotPermittedException
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,circuitbreakers,retries
+  endpoint:
+    health:
+      probes:
+        enabled: true

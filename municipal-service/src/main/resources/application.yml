@@ -1,0 +1,32 @@
+server:
+  port: ${SERVER_PORT:8083}
+
+spring:
+  application:
+    name: municipal-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/municipal}
+    username: ${SPRING_DATASOURCE_USERNAME:municipal}
+    password: ${SPRING_DATASOURCE_PASSWORD:municipal}
+  jpa:
+    hibernate:
+      ddl-auto: none        # schema.sql owns the schema; integration tests check the entities against it
+    open-in-view: false
+  sql:
+    init:
+      mode: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+# Logs go to standard output (Docker collects them); nothing is written to files.
+logging:
+  level:
+    root: INFO

@@ -1,0 +1,138 @@
+# One command starts everything:  docker compose up --build
+#
+#   frontend (3000) --> api-gateway (8080) --REST--> report-service (8081) --gRPC--> collection-service (9090)
+#                                                          |  \--SOAP--> municipal-service (8083)
+#                                                      db: reports      (collections, municipal: one database each)
+#
+# Services find each other by Docker Compose DNS name (report-service, collection-service, ...).
+# All configuration is injected through environment variables; the values below are local-demo defaults.
+
+x-java-healthcheck: &java-healthcheck
+  interval: 10s
+  timeout: 5s
+  retries: 12
+  start_period: 40s
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-postgres}
+      REPORTS_DB_PASSWORD: ${REPORTS_DB_PASSWORD:-change-me-reports}
+      COLLECTIONS_DB_PASSWORD: ${COLLECTIONS_DB_PASSWORD:-change-me-collections}
+      MUNICIPAL_DB_PASSWORD: ${MUNICIPAL_DB_PASSWORD:-change-me-municipal}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    networks: [ecotrack-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  municipal-service:
+    build:
+      context: .
+      dockerfile: municipal-service/Dockerfile
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/municipal
+      SPRING_DATASOURCE_USERNAME: municipal
+      SPRING_DATASOURCE_PASSWORD: ${MUNICIPAL_DB_PASSWORD:-change-me-municipal}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8083:8083"
+    networks: [ecotrack-net]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8083/actuator/health"]
+      <<: *java-healthcheck
+
+  collection-service:
+    build:
+      context: .
+      dockerfile: collection-service/Dockerfile
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/collections
+      SPRING_DATASOURCE_USERNAME: collections
+      SPRING_DATASOURCE_PASSWORD: ${COLLECTIONS_DB_PASSWORD:-change-me-collections}
+      SIMULATION_STEP_SECONDS: ${SIMULATION_STEP_SECONDS:-10}   # PLANNED -> IN_PROGRESS -> COMPLETED every N seconds
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8082:8082"   # actuator
+      - "9090:9090"   # gRPC (grpcurl)
+    networks: [ecotrack-net]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8082/actuator/health"]
+      <<: *java-healthcheck
+
+  report-service:
+    build:
+      context: .
+      dockerfile: report-service/Dockerfile
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/reports
+      SPRING_DATASOURCE_USERNAME: reports
+      SPRING_DATASOURCE_PASSWORD: ${REPORTS_DB_PASSWORD:-change-me-reports}
+      COLLECTION_GRPC_ADDRESS: static://collection-service:9090
+      MUNICIPAL_SOAP_URL: http://municipal-service:8083/ws
+      UPLOADS_DIR: /data/uploads
+      # NOTE: no depends_on municipal-service on purpose. report-service must start and keep working when the
+      # municipal system is down: that is the resilience demonstration (retry, fallback PENDING_TRANSMISSION).
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      collection-service:
+        condition: service_healthy
+    ports:
+      - "8081:8081"   # direct access, Swagger UI at /swagger-ui.html, circuit breakers at /actuator/circuitbreakers
+    networks: [ecotrack-net]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8081/actuator/health"]
+      <<: *java-healthcheck
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    environment:
+      REPORT_SERVICE_URL: http://report-service:8081
+    depends_on:
+      report-service:
+        condition: service_healthy
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    networks: [ecotrack-net]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      <<: *java-healthcheck
+
+  frontend:
+    build:
+      context: ./frontend
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    networks: [ecotrack-net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+networks:
+  ecotrack-net:
+    driver: bridge
+
+volumes:
+  pgdata:
+  uploads:
