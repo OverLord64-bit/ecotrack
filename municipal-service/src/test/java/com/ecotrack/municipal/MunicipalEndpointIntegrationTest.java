@@ -50,11 +50,11 @@ class MunicipalEndpointIntegrationTest {
         String id = UUID.randomUUID().toString();
         client.sendRequest(withPayload(new StringSource(submit(id, "2026-01-01T10:00:00Z"))))
                 .andExpect(noFault())
-                .andExpect(xpath("//m:duplicate", NSMAP).evaluatesTo(false))
-                .andExpect(xpath("//m:accepted", NSMAP).evaluatesTo(true));
+                .andExpect(xpath("string(//m:duplicate)", NSMAP).evaluatesTo("false"))
+                .andExpect(xpath("string(//m:accepted)", NSMAP).evaluatesTo("true"));
         client.sendRequest(withPayload(new StringSource(submit(id, "2026-01-01T10:00:00Z"))))
                 .andExpect(noFault())
-                .andExpect(xpath("//m:duplicate", NSMAP).evaluatesTo(true));
+                .andExpect(xpath("string(//m:duplicate)", NSMAP).evaluatesTo("true"));
     }
 
     @Test
@@ -66,7 +66,7 @@ class MunicipalEndpointIntegrationTest {
                         "<m:GetRecordStatusRequest xmlns:m=\"" + NS + "\"><m:recordId>" + id
                                 + "</m:recordId></m:GetRecordStatusRequest>")))
                 .andExpect(noFault())
-                .andExpect(xpath("//m:found", NSMAP).evaluatesTo(true))
+                .andExpect(xpath("string(//m:found)", NSMAP).evaluatesTo("true"))
                 .andExpect(xpath("//m:status", NSMAP).evaluatesTo("RECEIVED"));
     }
 
@@ -76,7 +76,7 @@ class MunicipalEndpointIntegrationTest {
                         "<m:GetRecordStatusRequest xmlns:m=\"" + NS + "\"><m:recordId>"
                                 + UUID.randomUUID() + "</m:recordId></m:GetRecordStatusRequest>")))
                 .andExpect(noFault())
-                .andExpect(xpath("//m:found", NSMAP).evaluatesTo(false));
+                .andExpect(xpath("string(//m:found)", NSMAP).evaluatesTo("false"));
     }
 
     @Test
