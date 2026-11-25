@@ -1,6 +1,7 @@
 package com.ecotrack.report.soap;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.webservices.client.HttpWebServiceMessageSenderBuilder;
 import org.springframework.boot.webservices.client.WebServiceTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -29,8 +30,10 @@ public class MunicipalClientConfig {
                 .setMarshaller(marshaller)
                 .setUnmarshaller(marshaller)
                 .setDefaultUri(url)
-                .setConnectTimeout(Duration.ofMillis(connectTimeoutMs))
-                .setReadTimeout(Duration.ofMillis(readTimeoutMs))
+                .messageSenders(new HttpWebServiceMessageSenderBuilder()
+                        .setConnectTimeout(Duration.ofMillis(connectTimeoutMs))
+                        .setReadTimeout(Duration.ofMillis(readTimeoutMs))
+                        .build())
                 .interceptors(new SoapLoggingInterceptor())
                 .build();
     }
