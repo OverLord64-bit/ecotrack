@@ -3,7 +3,7 @@
 # and the contracts module.
 
 # ---- stage 1: build (full JDK + Maven, discarded afterwards) ----
-FROM maven:3.9-eclipse-temurin-17 AS build
+FROM maven:3.9-eclipse-temurin-26 AS build
 WORKDIR /src
 COPY pom.xml .
 COPY contracts contracts
