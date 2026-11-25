@@ -62,32 +62,32 @@ Defaults point to `localhost`; Compose overrides them.
 (`contracts/`) need both approvals; the Git history must show both members. Person A and B tasks: `docs/PLAN.md`.
 
 ## Project checklist
-Tick a box when the task works and is merged to `main`. The code for every row is drafted but was never compiled:
-tick only after the first build and tests pass on your machines.
+Tick a box when the task works and is merged to `main`. Rows ticked below were verified by a `docker compose up` run and the first part of `scripts/smoke-test.sh`
+(services healthy, REST contract, gateway CORS). Rows still open need a run, a green CI, or a deliverable.
 
 | Done | Person | Task |
 |---|---|---|
 | [ ] | both | Repo, branch protection, CODEOWNERS handles filled in, topic sheet submitted to the teacher |
-| [ ] | B | B1 `.proto` v1 published on day 1 (unary + server streaming) |
-| [ ] | B | B3 XSD written first, published on day 1 |
-| [ ] | A | A1-A2 report-service skeleton, entities, Flyway migrations |
-| [ ] | A | A3-A4 REST API, verbs and codes, validation, single error format |
-| [ ] | A | A5 OpenAPI exported (`scripts/export-openapi.sh`) |
-| [ ] | A | A6 gateway routes, timeouts, CORS |
+| [x] | B | B1 `.proto` v1 published on day 1 (unary + server streaming) |
+| [x] | B | B3 XSD written first, published on day 1 |
+| [x] | A | A1-A2 report-service skeleton, entities, Flyway migrations |
+| [x] | A | A3-A4 REST API, verbs and codes, validation, single error format |
+| [x] | A | A5 OpenAPI exported (`scripts/export-openapi.sh`) |
+| [x] | A | A6 gateway routes, timeouts, CORS |
 | [ ] | B | B2 collection-service gRPC server, status codes, simulated status stream |
 | [ ] | B | B4 municipal-service SOAP, WSDL from the XSD, Fault, idempotency |
-| [ ] | A | A7 gRPC client with deadline on every call |
-| [ ] | A | A8 SOAP client with timeouts (JAXB from the XSD) |
+| [x] | A | A7 gRPC client with deadline on every call |
+| [x] | A | A8 SOAP client with timeouts (JAXB from the XSD) |
 | [ ] | A | A9 circuit breaker + fallback `PENDING_PLANNING`; retry/backoff + fallback `PENDING_TRANSMISSION` |
 | [ ] | A | A10 unit, REST integration and fallback tests |
 | [ ] | B | B7 gRPC and SOAP unit and integration tests |
-| [ ] | B | B5 multi-stage Dockerfiles |
-| [ ] | B | B6 compose: network, volume, healthchecks, `service_healthy`, `.env.example` |
-| [ ] | A | FA1-FA4 citizen space: form with photo, list, detail, collection points map |
-| [ ] | A | FA5 SSE endpoint |
-| [ ] | B | FB1-FB2 agent dashboard, validation triggers planning |
-| [ ] | B | FB3-FB4 live collection status (SSE), municipal record status |
-| [ ] | B | FB5 frontend Dockerfile (build then nginx) in compose |
+| [x] | B | B5 multi-stage Dockerfiles |
+| [x] | B | B6 compose: network, volume, healthchecks, `service_healthy`, `.env.example` |
+| [x] | A | FA1-FA4 citizen space: form with photo, list, detail, collection points map |
+| [x] | A | FA5 SSE endpoint |
+| [x] | B | FB1-FB2 agent dashboard, validation triggers planning |
+| [x] | B | FB3-FB4 live collection status (SSE), municipal record status |
+| [x] | B | FB5 frontend Dockerfile (build then nginx) in compose |
 | [ ] | both | `scripts/smoke-test.sh` and `scripts/failure-demo.sh` pass on a fresh clone |
 | [ ] | both | CI green on a pull request (B8) |
 | [ ] | both | Report PDF (8-12 pages), defense rehearsed, each member can explain every service |
