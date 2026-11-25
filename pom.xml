@@ -18,6 +18,7 @@
   <name>EcoTrack SOA (parent)</name>
 
   <properties>
+    <docker.api.version>1.44</docker.api.version>
     <java.version>17</java.version>
     <spring-cloud.version>2023.0.3</spring-cloud.version>
     <grpc.version>1.65.0</grpc.version>
@@ -83,4 +84,18 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <!-- read by docker-java (inside Testcontainers 1.x); needed with Docker Engine 29+ (minimum API 1.44) -->
+            <api.version>${docker.api.version}</api.version>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 </project>
