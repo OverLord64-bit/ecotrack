@@ -124,7 +124,9 @@ services:
       - "${FRONTEND_PORT:-3000}:80"
     networks: [ecotrack-net]
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      # 127.0.0.1, not localhost: in nginx:alpine "localhost" resolves to ::1 first, and our nginx.conf
+      # only listens on IPv4, so the probe would fail even though nginx is serving fine.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
       interval: 10s
       timeout: 5s
       retries: 6
